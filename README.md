@@ -9,7 +9,8 @@ bolted on.
 
 ![SkyShield Weather Card](screenshots/card.png)
 
-**Work in progress.** No release yet; the card is developed on `main` only.
+**Current version: 1.0.0** — see the [release notes](https://github.com/Pissbirne/skyshield-weather-card/releases)
+for what changed, or the [options](#options) for the configuration switches.
 
 ## Features
 
@@ -31,7 +32,15 @@ bolted on.
   current values. Off on phones, can be disabled for wall tablets.
 - **Scales per device** — `font_scale` adjusts every size, icon and the curve geometry.
 
-## Installation (manual, for now)
+## Installation
+
+### HACS / Marketplace (recommended)
+
+1. HACS → ⋮ → **Custom repositories** → add `https://github.com/Pissbirne/skyshield-weather-card`, category **Dashboard**.
+2. Install **SkyShield Weather Card**, then reload the browser once.
+3. Add the card and pick your weather entity — the rest has switches in the card editor.
+
+### Manual
 
 1. Copy `skyshield-weather-card.js` to `/config/www/community/skyshield-weather-card/`.
 2. Settings → Dashboards → ⋮ → Resources → add
