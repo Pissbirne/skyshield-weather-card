@@ -7,6 +7,8 @@ drifting clouds, rain, snow, fog and lightning, all following the weather entity
 position. The warning band sits on top of that sky, so warnings never look like a second card
 bolted on.
 
+![SkyShield Weather Card](screenshots/card.png)
+
 **Work in progress.** No release yet; the card is developed on `main` only.
 
 ## Features
@@ -71,6 +73,16 @@ Every option is in the visual editor, no YAML required.
 - Warning texts come from the source integration, so they stay in its language (DWD → German).
 - The card is a plain `HTMLElement` with a canvas; no Lit runtime, no dependencies.
 - `prefers-reduced-motion` renders a still sky.
+
+## Screenshots
+
+| Normal | Full-screen zoom |
+|---|---|
+| ![Card](screenshots/card.png) | ![Zoom](screenshots/zoom.png) |
+
+Snow at night, as the sky renders it:
+
+![Snow at night](screenshots/night-snow.png)
 
 ## License
 
