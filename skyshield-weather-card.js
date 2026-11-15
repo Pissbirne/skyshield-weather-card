@@ -56,6 +56,8 @@ const STRINGS = {
     editor_font_scale_help: "1 = default. Raise it on laptops and small screens, lower it on a wall tablet.",
     editor_zoom: "Full-screen zoom",
     editor_zoom_help: "auto: zoom on tap only on wide screens (the small expand icon shows up). off: never.",
+    editor_show_rain_bars: "Precipitation bars",
+    editor_show_rain_bars_help: "A bar per hour under the strip, scaled to the wettest hour shown.",
     editor_show_curve: "Temperature curve",
     editor_show_curve_help: "Line through the hourly temperatures.",
     editor_show_next: "Next precipitation",
@@ -108,6 +110,8 @@ const STRINGS = {
     editor_font_scale_help: "1 = Standard. Auf Laptop/kleinen Bildschirmen höher, auf dem Wandrahmen niedriger.",
     editor_zoom: "Vollbild-Zoom",
     editor_zoom_help: "auto: Zoom per Tipp nur auf großen Bildschirmen (Pfeil-Symbol erscheint). aus: nie.",
+    editor_show_rain_bars: "Regenmengen-Säulen",
+    editor_show_rain_bars_help: "Ein Balken je Stunde unter dem Streifen, skaliert auf die nasseste Stunde.",
     editor_show_curve: "Temperaturkurve",
     editor_show_curve_help: "Linie durch die Stundentemperaturen.",
     editor_show_next: "Nächster Niederschlag",
@@ -132,6 +136,7 @@ const DEFAULTS = {
   font_scale: 1,
   show_curve: true,
   show_next: true,
+  show_rain_bars: true,
   debug_warning: 0,
   debug_condition: "",
   debug_night: false,
@@ -531,6 +536,7 @@ class SkyShieldEditor extends HTMLElement {
         { name: "show_curve", selector: { boolean: {} } },
         { name: "show_next", selector: { boolean: {} } },
       ] },
+      { name: "show_rain_bars", selector: { boolean: {} } },
     ];
     this._form.data = this._config;
   }
@@ -613,11 +619,15 @@ class SkyShieldCard extends HTMLElement {
     this._watch();
     this._winResize = () => this._onWinResize();
     window.addEventListener("resize", this._winResize);
+    window.addEventListener("orientationchange", this._winResize);
     this._render();
   }
   disconnectedCallback() {
     this._stop();
-    if (this._winResize) window.removeEventListener("resize", this._winResize);
+    if (this._winResize) {
+      window.removeEventListener("resize", this._winResize);
+      window.removeEventListener("orientationchange", this._winResize);
+    }
     if (this._zoomed) {
       this._zoomed = false;
       document.body.style.overflow = "";
@@ -685,6 +695,8 @@ class SkyShieldCard extends HTMLElement {
 *,*::before,*::after{box-sizing:border-box}
 ha-card{
   --ss-k:1;
+  display:block;
+  width:100%;
   position:relative;
   overflow:hidden;
   border-radius:var(--ha-card-border-radius,12px);
@@ -694,8 +706,8 @@ ha-card{
   color:#fff;
   --ss-level:#ffd23f;
 }
-canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block;z-index:0}
-.scrim{position:absolute;inset:0;z-index:1;pointer-events:none;
+canvas{position:absolute;left:0;top:0;width:100%;height:var(--ss-sky-h,100%);display:block;z-index:0}
+.scrim{position:absolute;left:0;top:0;right:0;height:var(--ss-sky-h,100%);z-index:1;pointer-events:none;
   background:linear-gradient(180deg,rgba(0,0,0,.16) 0%,rgba(0,0,0,0) 34%,rgba(0,0,0,.42) 100%)}
 .content{position:relative;z-index:2;display:flex;flex-direction:column;gap:10px;box-sizing:border-box;
   padding:14px 16px 14px;text-shadow:0 1px 3px rgba(0,0,0,.5)}
@@ -748,6 +760,13 @@ svg.curve path.line{fill:none;stroke:rgba(255,255,255,.62);stroke-width:1.6;stro
 .hour .hv{position:absolute;left:50%;transform:translateX(-50%);font-size:calc(18px * var(--ss-k));font-weight:700;
   white-space:nowrap;font-variant-numeric:tabular-nums;text-shadow:0 1px 3px rgba(0,0,0,.65)}
 .hour .hp{font-size:calc(12.5px * var(--ss-k));opacity:.85;color:#cfe8ff;height:13px;line-height:13px}
+.rain{display:flex;align-items:flex-end;justify-content:center;width:100%;
+  height:calc(20px * var(--ss-k));margin-top:2px}
+.rain .rbar{width:44%;min-height:0;border-radius:2px 2px 0 0;
+  background:linear-gradient(180deg,#8fd6ff,rgba(143,214,255,.28))}
+.strip.norain .rain{display:none}
+.days.norain .rain{display:none}
+.days .rain{height:calc(16px * var(--ss-k));margin-top:2px}
 .days{display:grid;gap:2px;font-size:calc(12px * var(--ss-k));align-items:center}
 .days[hidden]{display:none}
 .day{display:flex;flex-direction:column;align-items:center;gap:2px}
@@ -760,10 +779,11 @@ svg.curve path.line{fill:none;stroke:rgba(255,255,255,.62);stroke-width:1.6;stro
   -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);opacity:0;pointer-events:none;
   transition:opacity .26s ease}
 .zoombg.on{opacity:1;pointer-events:auto}
-ha-card.zoomed{position:fixed;left:4vw;top:5vh;right:4vw;bottom:5vh;width:auto;height:auto;
-  z-index:2147483001;animation:ss-zoom .34s cubic-bezier(.2,.85,.25,1) both}
+ha-card.zoomed{position:fixed;left:3vw;top:3vh;right:3vw;bottom:3vh;width:auto;height:auto;
+  z-index:2147483001;overflow:hidden;animation:ss-zoom .34s cubic-bezier(.2,.85,.25,1) both}
 @keyframes ss-zoom{from{opacity:0;transform:scale(.94) translateY(10px)}to{opacity:1;transform:none}}
-.zoomed .content{padding:24px 28px 22px;gap:16px;height:100%;justify-content:space-between}
+.zoomed .content{padding:22px 22px 20px;gap:14px;height:100%;max-height:100%;box-sizing:border-box;
+  overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .zoomed .stripwrap{margin-top:auto}
 .zoomed .temp{font-size:64px;letter-spacing:-2px}
 .zoomed .place{font-size:13px}
@@ -868,7 +888,10 @@ ha-icon.expandbtn[hidden]{display:none}
     });
     this._refs.zoombg.addEventListener("click", () => this._closeZoom());
     if (this._refs.close) this._refs.close.addEventListener("click", (e) => { e.stopPropagation(); this._closeZoom(); });
-    if (this._refs.expand) this._refs.expand.addEventListener("click", (e) => { e.stopPropagation(); this._openZoom(); });
+    if (this._refs.expand) this._refs.expand.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (this._canZoom()) this._openZoom(); else this._moreInfo();
+    });
     if (this._refs.info) this._refs.info.addEventListener("click", (e) => { e.stopPropagation(); this._moreInfo(); });
     this._applyScale();
     this._built = true;
@@ -936,19 +959,25 @@ ha-icon.expandbtn[hidden]{display:none}
     if (!this._built) return;
     const cfg = this._config;
     const zoom = this._zoomed;
+    const lowish = (window.innerHeight || 800) < 560;
     const hours = zoom
-      ? (window.innerWidth >= 1100 ? 12 : 8)
+      ? (lowish ? 6 : (window.innerWidth >= 1100 ? 12 : 8))
       : (cfg.compact ? 0 : Math.max(0, Math.min(12, num(cfg.hours, 6))));
-    const days = zoom ? 7 : (cfg.compact ? 0 : Math.max(0, Math.min(7, num(cfg.days, 4))));
+    const days = zoom
+      ? (lowish ? 4 : 7)
+      : (cfg.compact ? 0 : Math.max(0, Math.min(7, num(cfg.days, 4))));
     this._refs.stripWrap.hidden = hours <= 0;
     this._refs.days.hidden = days <= 0;
+    this._refs.strip.classList.toggle("norain", this._config.show_rain_bars === false);
+    this._refs.days.classList.toggle("norain", this._config.show_rain_bars === false);
     const strip = this._refs.strip;
     while (strip.children.length > hours) strip.removeChild(strip.lastChild);
     while (strip.children.length < hours) {
       const el = document.createElement("div");
       el.className = "hour";
       el.innerHTML = '<span class="ht"></span><ha-icon icon="mdi:weather-cloudy"></ha-icon>' +
-        '<div class="hplot"><span class="hv"></span></div><span class="hp"></span>';
+        '<div class="hplot"><span class="hv"></span></div><span class="hp"></span>' +
+        '<div class="rain"><span class="rbar"></span></div>';
       strip.appendChild(el);
     }
     const daysEl = this._refs.days;
@@ -958,7 +987,8 @@ ha-icon.expandbtn[hidden]{display:none}
       const el = document.createElement("div");
       el.className = "day";
       el.innerHTML = '<span class="dt"></span><ha-icon icon="mdi:weather-cloudy"></ha-icon>' +
-        '<span class="dv"></span><span class="dh"></span>';
+        '<span class="dv"></span><span class="dh"></span>' +
+        '<div class="rain"><span class="rbar"></span></div>';
       daysEl.appendChild(el);
     }
     if (!this._reduce && cfg.animate !== false) this._start(); else this._drawOnce();
@@ -1027,7 +1057,13 @@ ha-icon.expandbtn[hidden]{display:none}
       return;
     }
     R.err.hidden = true;
-    if (R.expand) { R.expand.title = T(hass, "zoom_in"); R.expand.setAttribute("aria-label", T(hass, "zoom_in")); }
+    if (R.expand) {
+      const can = this._canZoom();
+      R.expand.hidden = !can;
+      R.expand.style.display = can ? "" : "none";
+      R.expand.title = T(hass, "zoom_in");
+      R.expand.setAttribute("aria-label", T(hass, "zoom_in"));
+    }
     if (R.close) { R.close.title = T(hass, "zoom_out"); R.close.setAttribute("aria-label", T(hass, "zoom_out")); }
     if (R.info) { R.info.title = T(hass, "details"); R.info.setAttribute("aria-label", T(hass, "details")); }
 
@@ -1171,19 +1207,22 @@ ha-icon.expandbtn[hidden]{display:none}
       const slots = R.strip.children;
       const list = hourly.slice(0, slots.length - 1);
       const temps = [];
+      const prec = [];
       Array.prototype.forEach.call(slots, (el, i) => {
-        let tempVal = NaN, prob = NaN, icon = condIcon(cond), label = "";
+        let tempVal = NaN, prob = NaN, prob2rain = NaN, icon = condIcon(cond), label = "";
         if (i === 0) {
           /* the first slot is the live reading, not the first forecast hour */
           label = T(hass, "now");
           tempVal = num(a.temperature, NaN);
           prob = hourly.length ? num(hourly[0].precipitation_probability, NaN) : NaN;
+          prob2rain = hourly.length ? num(hourly[0].precipitation, NaN) : NaN;
         } else {
           const f = list[i - 1];
-          if (!f) { el.style.display = "none"; temps.push(null); return; }
+          if (!f) { el.style.display = "none"; temps.push(null); prec.push(null); return; }
           label = fmtHour(f.datetime, hass, false);
           tempVal = num(f.temperature, NaN);
           prob = num(f.precipitation_probability, NaN);
+          prob2rain = f.precipitation !== undefined ? num(f.precipitation, NaN) : num(f.precipitation_amount, NaN);
           icon = condIcon(f.condition);
         }
         el.style.display = "";
@@ -1192,23 +1231,29 @@ ha-icon.expandbtn[hidden]{display:none}
         el.querySelector(".hv").textContent = tempText(tempVal);
         el.querySelector(".hp").textContent = isFinite(prob) && prob >= 10 ? round(prob) + "%" : "";
         temps.push(isFinite(tempVal) ? tempVal : null);
+        prec.push(isFinite(prob2rain) ? prob2rain : null);
       });
       this._paintCurve(temps);
+      this._paintRain(prec);
     }
 
     /* --- daily ---------------------------------------------------------- */
     if (!R.days.hidden) {
       const list = daily.slice(0, R.days.children.length);
+      const dprec = [];
       R.days.style.gridTemplateColumns = "repeat(" + Math.max(1, list.length) + ",1fr)";
       Array.prototype.forEach.call(R.days.children, (el, i) => {
         const f = list[i];
-        if (!f) { el.style.display = "none"; return; }
+        if (!f) { el.style.display = "none"; dprec.push(null); return; }
         el.style.display = "";
         el.querySelector(".dt").textContent = fmtDay(f.datetime, hass, i);
         el.querySelector("ha-icon").setAttribute("icon", condIcon(f.condition));
         el.querySelector(".dv").textContent = tempText(num(f.temperature, NaN));
         el.querySelector(".dh").textContent = tempText(num(f.templow, NaN));
+        const dv = f.precipitation !== undefined ? num(f.precipitation, NaN) : num(f.precipitation_amount, NaN);
+        dprec.push(isFinite(dv) ? dv : null);
       });
+      this._paintRain(dprec, R.days);
     }
 
     /* --- sky ------------------------------------------------------------ */
@@ -1218,15 +1263,19 @@ ha-icon.expandbtn[hidden]{display:none}
       this._seed();
     }
     this._sun = this._sunData();
+    if (this._zoomed) this._measure();
     this._ensureAnim();
   }
 
   _canZoom() {
     const mode = this._config.zoom === undefined ? "auto" : this._config.zoom;
     if (mode === "off" || mode === false) return false;
-    if (typeof window === "undefined" || !window.innerWidth) return false;
-    /* the width of the window is what decides — not the card's own width */
-    return window.innerWidth >= 700;
+    if (typeof window === "undefined") return false;
+    /* innerWidth lies on phones (layout viewport can be 980px) — take the visual viewport */
+    const vv = window.visualViewport;
+    const vw = (vv && vv.width) || window.innerWidth || 0;
+    const vh = (vv && vv.height) || window.innerHeight || 0;
+    return vw >= 700 && vh >= 320;
   }
 
   _moreInfo() {
@@ -1315,6 +1364,25 @@ ha-icon.expandbtn[hidden]{display:none}
     R.curveLine.setAttribute("d", d);
   }
 
+  /* precipitation per hour as bars, scaled to the wettest hour shown */
+  _paintRain(prec, root) {
+    const box = root || this._refs.strip;
+    if (!box) return;
+    const off = this._config.show_rain_bars === false;
+    const slots = box.children;
+    const vals = prec.filter(function (v) { return v !== null && v > 0; });
+    const max = vals.length ? Math.max.apply(null, vals) : 0;
+    Array.prototype.forEach.call(slots, (el, i) => {
+      const bar = el.querySelector(".rbar");
+      if (!bar) return;
+      if (off || !vals.length) { bar.style.height = "0px"; bar.style.opacity = "0"; return; }
+      const v = prec[i];
+      const pct = (v && v > 0) ? Math.max(8, Math.round((v / max) * 100)) : 0;
+      bar.style.height = pct ? pct + "%" : "0px";
+      bar.style.opacity = pct ? "1" : "0";
+    });
+  }
+
   _sunData() {
     const hass = this._hass;
     const id = this._config.sun_entity || "sun.sun";
@@ -1397,6 +1465,7 @@ ha-icon.expandbtn[hidden]{display:none}
     if (!this._built) return;
     const canvas = this._refs.canvas;
     const rect = this._refs.card.getBoundingClientRect();
+    const el = this._refs.card;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     /* hard clamp: a bogus rect must never blow up the canvas (and then the card) */
     const w = Math.min(6000, Math.max(1, Math.round(rect.width)));

@@ -22,6 +22,8 @@ bolted on.
   automatically. Sorted by severity, expired ones filtered out.
 - **Warning text** — the short text is always visible, the advice below it opens on tap.
 - **Hourly strip with a temperature curve** — curve is optional and never runs through the values.
+- **Precipitation bars** — one bar per hour and per day, scaled to the wettest column shown; one switch
+  for both.
 - **Next precipitation** — a line under the condition: when the next rain or snow starts.
 - **Full-screen zoom** — tap the card (wide screens only) for 12 hours and 7 days plus more
   current values. Off on phones, can be disabled for wall tablets.
@@ -57,6 +59,7 @@ warning_entities:
 | `show_warnings` | `true` | Off never shows a warning band |
 | `show_warning_text` | `false` | On keeps the advice open permanently |
 | `show_curve` | `true` | Temperature curve in the strip |
+| `show_rain_bars` | `true` | Precipitation bars under the hours and the days |
 | `show_next` | `true` | "Rain from …" line under the condition |
 | `zoom` | `auto` | `auto`, `always` or `off` |
 | `font_scale` | `1` | 0.8–1.8, scales every size |
