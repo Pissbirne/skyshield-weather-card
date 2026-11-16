@@ -9,8 +9,10 @@ bolted on.
 
 ![SkyShield Weather Card](screenshots/card.png)
 
-**Current version: 1.0.0** — see the [release notes](https://github.com/Pissbirne/skyshield-weather-card/releases)
-for what changed, or the [options](#options) for the configuration switches.
+[![Latest release](https://img.shields.io/github/v/release/Pissbirne/skyshield-weather-card?label=release)](https://github.com/Pissbirne/skyshield-weather-card/releases)
+
+See the [release notes](https://github.com/Pissbirne/skyshield-weather-card/releases) for what changed,
+and the [options](#options) for every configuration switch.
 
 ## Features
 
