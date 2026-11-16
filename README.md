@@ -93,9 +93,9 @@ Every option is in the visual editor, no YAML required.
 |---|---|
 | ![Card](screenshots/card.png) | ![Zoom](screenshots/zoom.png) |
 
-Snow at night, as the sky renders it:
+Snow, as the sky renders it — icons, temperatures and the warning all follow the same weather:
 
-![Snow at night](screenshots/night-snow.png)
+![Snow](screenshots/snow.png)
 
 ## License
 
