@@ -58,6 +58,10 @@ const STRINGS = {
     editor_zoom_help: "auto: zoom on tap only on wide screens (the small expand icon shows up). off: never.",
     editor_show_rain_bars: "Precipitation bars",
     editor_show_rain_bars_help: "A bar per hour under the strip, scaled to the wettest hour shown.",
+    editor_scroll_hours: "Scrollable hours",
+    editor_scroll_hours_help: "Drag or swipe the strip sideways to reach more hours.",
+    editor_hours_total: "Hours in the strip",
+    editor_hours_total_help: "How many hours the strip holds when scrolling is on (up to 48).",
     editor_show_curve: "Temperature curve",
     editor_show_curve_help: "Line through the hourly temperatures.",
     editor_show_next: "Next precipitation",
@@ -112,6 +116,10 @@ const STRINGS = {
     editor_zoom_help: "auto: Zoom per Tipp nur auf großen Bildschirmen (Pfeil-Symbol erscheint). aus: nie.",
     editor_show_rain_bars: "Regenmengen-Säulen",
     editor_show_rain_bars_help: "Ein Balken je Stunde unter dem Streifen, skaliert auf die nasseste Stunde.",
+    editor_scroll_hours: "Stunden schiebbar",
+    editor_scroll_hours_help: "Streifen seitlich ziehen oder wischen, um weitere Stunden zu erreichen.",
+    editor_hours_total: "Stunden im Streifen",
+    editor_hours_total_help: "Wie viele Stunden der Streifen beim Schieben enthält (bis 48).",
     editor_show_curve: "Temperaturkurve",
     editor_show_curve_help: "Linie durch die Stundentemperaturen.",
     editor_show_next: "Nächster Niederschlag",
@@ -137,6 +145,8 @@ const DEFAULTS = {
   show_curve: true,
   show_next: true,
   show_rain_bars: true,
+  scroll_hours: true,
+  hours_total: 24,
   debug_warning: 0,
   debug_condition: "",
   debug_night: false,
@@ -523,6 +533,10 @@ class SkyShieldEditor extends HTMLElement {
         { name: "days", selector: { number: { min: 0, max: 7, mode: "box" } } },
       ] },
       { type: "grid", name: "", schema: [
+        { name: "scroll_hours", selector: { boolean: {} } },
+        { name: "hours_total", selector: { number: { min: 2, max: 48, mode: "box" } } },
+      ] },
+      { type: "grid", name: "", schema: [
         { name: "animate", selector: { boolean: {} } },
         { name: "compact", selector: { boolean: {} } },
       ] },
@@ -644,6 +658,10 @@ class SkyShieldCard extends HTMLElement {
       this._refs.expand.style.display = allowed ? "" : "none";
     }
     if (this._zoomed && !this._canZoom()) this._closeZoom();
+    if (this._refs && this._refs.strip) {
+      this._layoutStrip();
+      if (this._hass && this._built) this._render();
+    }
   }
 
   _watch() {
@@ -745,8 +763,15 @@ canvas{position:absolute;left:0;top:0;width:100%;height:var(--ss-sky-h,100%);dis
 .chips{display:flex;gap:16px;font-size:calc(13px * var(--ss-k));opacity:.94;flex-wrap:wrap}
 .chip{display:flex;align-items:center;gap:4px}
 .chip ha-icon{--mdc-icon-size:calc(16px * var(--ss-k));opacity:.85}
-.stripwrap{position:relative}
+.stripwrap{position:relative;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;
+  overscroll-behavior-x:contain;touch-action:pan-x}
 .stripwrap[hidden]{display:none}
+.stripwrap::-webkit-scrollbar{display:none}
+.stripinner{position:relative;width:100%}
+.stripwrap.scroll.candrag{cursor:grab}
+.stripwrap.scroll .stripinner{width:max-content;min-width:100%}
+.stripwrap.scroll .strip{width:max-content;justify-content:flex-start}
+.stripwrap.scroll .hour{flex:0 0 var(--ss-slot);min-width:var(--ss-slot)}
 .strip{position:relative;display:flex;justify-content:space-between;gap:2px}
 .strip[hidden]{display:none}
 svg.curve{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;overflow:visible}
@@ -841,8 +866,10 @@ ha-icon.expandbtn[hidden]{display:none}
     <div class="alerts"></div>
     <div class="chips"></div>
     <div class="stripwrap">
-      <svg class="curve" preserveAspectRatio="none"><path class="line"></path></svg>
-      <div class="strip"></div>
+      <div class="stripinner">
+        <svg class="curve" preserveAspectRatio="none"><path class="line"></path></svg>
+        <div class="strip"></div>
+      </div>
     </div>
     <div class="days"></div>
     <div class="err" hidden></div>
@@ -877,6 +904,7 @@ ha-icon.expandbtn[hidden]{display:none}
     if (R0.close) { R0.close.title = T(this._hass || {}, "zoom_out"); R0.close.setAttribute("role", "button"); }
     if (R0.info) { R0.info.title = T(this._hass || {}, "details"); R0.info.setAttribute("role", "button"); }
     this._refs.card.addEventListener("click", (ev) => {
+      if (this._dragged) { this._dragged = 0; return; }
       const t = ev.target;
       if (t && t.closest) {
         if (t.closest(".alert") || t.closest("ha-icon.closebtn") || t.closest("ha-icon.expandbtn")) return;
@@ -886,6 +914,29 @@ ha-icon.expandbtn[hidden]{display:none}
       if (this._canZoom()) this._openZoom();
       else this._moreInfo();
     });
+    /* sideways drag on the hour strip; touch pans natively via touch-action */
+    const wrap = this._refs.stripWrap;
+    if (wrap) {
+      let startX = 0, startLeft = 0, active = false;
+      const stop = () => { active = false; wrap.style.cursor = ""; };
+      wrap.addEventListener("pointerdown", (ev) => {
+        if (!wrap.classList.contains("scroll")) return;
+        if (ev.pointerType === "mouse" && ev.button !== 0) return;
+        active = true; startX = ev.clientX; startLeft = wrap.scrollLeft; this._dragged = 0;
+      });
+      wrap.addEventListener("pointermove", (ev) => {
+        if (!active) return;
+        const dx = ev.clientX - startX;
+        if (Math.abs(dx) > 3) {
+          this._dragged = 1;
+          wrap.scrollLeft = startLeft - dx;
+          if (ev.pointerType === "mouse") wrap.style.cursor = "grabbing";
+        }
+      });
+      wrap.addEventListener("pointerup", stop);
+      wrap.addEventListener("pointercancel", stop);
+      wrap.addEventListener("dragstart", (ev) => ev.preventDefault());
+    }
     this._refs.zoombg.addEventListener("click", () => this._closeZoom());
     if (this._refs.close) this._refs.close.addEventListener("click", (e) => { e.stopPropagation(); this._closeZoom(); });
     if (this._refs.expand) this._refs.expand.addEventListener("click", (e) => {
@@ -966,13 +1017,19 @@ ha-icon.expandbtn[hidden]{display:none}
     const days = zoom
       ? (lowish ? 4 : 7)
       : (cfg.compact ? 0 : Math.max(0, Math.min(7, num(cfg.days, 4))));
+    const scrollHours = cfg.scroll_hours !== false && hours > 0;
+    const totalHours = scrollHours
+      ? Math.max(hours, Math.min(48, Math.round(num(cfg.hours_total, 24))))
+      : hours;
+    this._visibleHours = hours;
     this._refs.stripWrap.hidden = hours <= 0;
+    this._refs.stripWrap.classList.toggle("scroll", scrollHours);
     this._refs.days.hidden = days <= 0;
     this._refs.strip.classList.toggle("norain", this._config.show_rain_bars === false);
     this._refs.days.classList.toggle("norain", this._config.show_rain_bars === false);
     const strip = this._refs.strip;
-    while (strip.children.length > hours) strip.removeChild(strip.lastChild);
-    while (strip.children.length < hours) {
+    while (strip.children.length > totalHours) strip.removeChild(strip.lastChild);
+    while (strip.children.length < totalHours) {
       const el = document.createElement("div");
       el.className = "hour";
       el.innerHTML = '<span class="ht"></span><ha-icon icon="mdi:weather-cloudy"></ha-icon>' +
@@ -1204,6 +1261,7 @@ ha-icon.expandbtn[hidden]{display:none}
 
     /* --- hour strip ----------------------------------------------------- */
     if (!R.stripWrap.hidden) {
+      this._layoutStrip();
       const slots = R.strip.children;
       const list = hourly.slice(0, slots.length - 1);
       const temps = [];
@@ -1308,6 +1366,17 @@ ha-icon.expandbtn[hidden]{display:none}
     this._syncStructure();
     this._render();
     this._measure();
+  }
+
+  /* the scrollable strip gives each visible hour an equal share of the container */
+  _layoutStrip() {
+    const R = this._refs;
+    if (!R.strip || !R.stripWrap) return;
+    if (!R.stripWrap.classList.contains("scroll")) { R.stripWrap.style.removeProperty("--ss-slot"); return; }
+    const visible = Math.max(1, this._visibleHours || 1);
+    const avail = R.stripWrap.clientWidth - 2 * (visible - 1);
+    R.stripWrap.style.setProperty("--ss-slot", Math.max(30, Math.round(avail / visible)) + "px");
+    R.stripWrap.classList.add("candrag");
   }
 
   _paintCurve(temps) {

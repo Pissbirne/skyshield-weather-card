@@ -25,6 +25,8 @@ for what changed, or the [options](#options) for the configuration switches.
   automatically. Sorted by severity, expired ones filtered out.
 - **Warning text** — the short text is always visible, the advice below it opens on tap.
 - **Hourly strip with a temperature curve** — curve is optional and never runs through the values.
+- **Scrollable strip** — up to 48 hours behind the visible slots; drag with the mouse or swipe on a
+  phone, the curve travels with it. Slots snap into place, one switch turns it off.
 - **Precipitation bars** — one bar per hour and per day, scaled to the wettest column shown; one switch
   for both.
 - **Next precipitation** — a line under the condition: when the next rain or snow starts.
@@ -63,7 +65,9 @@ warning_entities:
 | `sun_entity` | `sun.sun` | Sun entity for day/night, sunrise and sunset |
 | `warning_entities` | `[]` | Sensors carrying warnings |
 | `name` | entity name | Label above the temperature |
-| `hours` | `6` | Slots in the hourly strip, `0` hides it |
+| `hours` | `6` | Slots visible in the hourly strip, `0` hides it |
+| `scroll_hours` | `true` | Strip holds more hours than fit; drag or swipe sideways |
+| `hours_total` | `24` | Hours in the strip when scrolling is on (up to 48) |
 | `days` | `4` | Days in the forecast, `0` hides it |
 | `compact` | `false` | Hides strip and forecast |
 | `animate` | `true` | Off draws a still frame |
